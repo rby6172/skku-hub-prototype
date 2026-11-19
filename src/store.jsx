@@ -10,7 +10,7 @@ const initialState = {
   screen: 'icampus', // icampus | hub
   courseId: 'swe',
   lectureId: 'swe-03',
-  tab: 'lecture',
+  tab: 'home',
   termMode: 'spoken', // spoken(원문) | ko | en
   sidebarOpen: true,
   analyzed: {}, // lectureId -> true

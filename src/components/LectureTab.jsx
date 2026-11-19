@@ -1,13 +1,20 @@
 // 강의 보기: 영상(또는 슬라이드 재생) + 슬라이드 + 스크립트 동기화
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertTriangle, ChevronLeft, ChevronRight, ListFilter, Loader2, Pause, Play, RotateCcw, RotateCw, Sparkles, Subtitles, Upload,
+  AlertTriangle, ChevronLeft, ChevronRight, ListFilter, Loader2, Pause, Play, RotateCcw, RotateCw, Sparkles, Subtitles, Upload, Volume2,
 } from 'lucide-react';
 import { FINDING_TYPES, segmentAt, segmentsForSlide, plainText } from '../data/index.js';
 import { asset, fmtTime } from '../lib/format.js';
 import { getFile } from '../lib/fileStore.js';
 import { usePlayer, useStore } from '../store.jsx';
 import { EmptyState, JumpButton, SlideView, TermText, TypeBadge } from './common.jsx';
+
+// public/audio/swe-03.mp3: Lecture 03 시연용 TTS
+const DEMO_AUDIO = { 
+  'swe-01': '/audio/swe-01.mp3',
+  'swe-02': '/audio/swe-02.mp3',
+  'swe-03': '/audio/swe-03.mp3',
+ };
 
 export default function LectureTab({ lecture }) {
   const { retried, patch } = useStore();
@@ -116,6 +123,10 @@ function Viewer({ lecture }) {
     return () => url && URL.revokeObjectURL(url);
   }, [lectureVideo, lecture.id]);
   const videoSrc = uploadedUrl || asset(lecture.videoUrl);
+  const audioSrc = videoSrc ? null : DEMO_AUDIO[lecture.id];
+  const [audioReady, setAudioReady] = useState(false);
+
+  useEffect(() => { setAudioReady(false); }, [audioSrc]);
 
   // 키보드: 스페이스 재생/정지, ← → 5초
   useEffect(() => {
@@ -146,17 +157,18 @@ function Viewer({ lecture }) {
             <>
               <SlideView lecture={lecture} slide={slide} annotations={corrections} />
               <span className="stage-mode" title="강의 영상이 없어 슬라이드를 시간에 맞춰 보여 줍니다">
-                슬라이드 재생 모드 · 영상 미등록
+                {audioReady ? 'TTS 음성 · 슬라이드 동기화' : '슬라이드 재생 모드 · 영상 미등록'}
               </span>
             </>
           )}
+          {audioSrc && <AudioStage key={lecture.id} src={audioSrc} onReadyChange={setAudioReady} />}
           {playing === false && time === 0 && !videoSrc && (
             <button type="button" className="big-play" onClick={() => setPlaying(true)} aria-label="재생">
               <Play size={30} fill="currentColor" />
             </button>
           )}
         </div>
-        <PlayerBar lecture={lecture} isAnalyzed={isAnalyzed} />
+        <PlayerBar lecture={lecture} isAnalyzed={isAnalyzed} hasAudio={audioReady} />
         <div className="below-stage">
           <div className="slide-nav">
             <button type="button" className="icon-btn" disabled={slideNo <= 1} onClick={() => gotoSlide(slideNo - 1)} aria-label="이전 슬라이드">
@@ -246,7 +258,79 @@ function VideoStage({ src }) {
   );
 }
 
-function PlayerBar({ lecture, isAnalyzed }) {
+// TTS 파일이 있으면 실제 오디오 재생 시간이 슬라이드/스크립트의 기준이 됩니다.
+function AudioStage({ src, onReadyChange }) {
+  const ref = useRef(null);
+  const readyRef = useRef(false);
+  const { time, setTime, playing, setPlaying, seekNonce, rate, setVideoActive } = usePlayer();
+  const timeRef = useRef(time);
+  const playingRef = useRef(playing);
+  const rateRef = useRef(rate);
+
+  useEffect(() => { timeRef.current = time; }, [time]);
+  useEffect(() => { playingRef.current = playing; }, [playing]);
+  useEffect(() => { rateRef.current = rate; }, [rate]);
+
+  // 로딩 중에는 가상 시계가 먼저 진행되지 않도록 멈춥니다.
+  // 파일이 없거나 로딩에 실패하면 기존 슬라이드 재생 모드로 돌아갑니다.
+  useEffect(() => {
+    readyRef.current = false;
+    setVideoActive(true);
+    return () => {
+      ref.current?.pause();
+      setVideoActive(false);
+    };
+  }, [setVideoActive]);
+
+  const handleReady = () => {
+    const audio = ref.current;
+    if (!audio || readyRef.current) return;
+    readyRef.current = true;
+    audio.playbackRate = rateRef.current;
+    audio.currentTime = Math.min(timeRef.current, audio.duration || timeRef.current);
+    onReadyChange(true);
+    if (playingRef.current) audio.play().catch(() => setPlaying(false));
+  };
+
+  const handleError = () => {
+    readyRef.current = false;
+    onReadyChange(false);
+    setVideoActive(false);
+  };
+
+  useEffect(() => {
+    const audio = ref.current;
+    if (!audio || !readyRef.current) return;
+    const target = Math.min(timeRef.current, audio.duration || timeRef.current);
+    if (Math.abs(audio.currentTime - target) > 0.1) audio.currentTime = target;
+  }, [seekNonce]);
+
+  useEffect(() => {
+    const audio = ref.current;
+    if (!audio || !readyRef.current) return;
+    if (playing && audio.paused) audio.play().catch(() => setPlaying(false));
+    if (!playing && !audio.paused) audio.pause();
+  }, [playing, setPlaying]);
+
+  useEffect(() => {
+    if (ref.current) ref.current.playbackRate = rate;
+  }, [rate]);
+
+  return (
+    <audio
+      ref={ref}
+      src={src}
+      preload="auto"
+      style={{ display: 'none' }}
+      onCanPlay={handleReady}
+      onError={handleError}
+      onTimeUpdate={(e) => { if (readyRef.current) setTime(e.currentTarget.currentTime); }}
+      onEnded={() => { setTime(ref.current?.duration || timeRef.current); setPlaying(false); }}
+    />
+  );
+}
+
+function PlayerBar({ lecture, isAnalyzed, hasAudio }) {
   const { time, playing, setPlaying, seek, rate, setRate } = usePlayer();
   const dur = lecture.duration || 1;
   const barRef = useRef(null);
@@ -296,6 +380,7 @@ function PlayerBar({ lecture, isAnalyzed }) {
       <span className="caption-mini" title={current ? plainText(current.text) : ''}>
         <Subtitles size={14} /> 자막
       </span>
+      {hasAudio && <span className="caption-mini" title="시연용 TTS 음성 재생 중"><Volume2 size={14} /> 음성</span>}
       <select value={rate} onChange={(e) => setRate(Number(e.target.value))} aria-label="재생 속도">
         {[0.75, 1, 1.25, 1.5, 2, 4].map((r) => (
           <option key={r} value={r}>
