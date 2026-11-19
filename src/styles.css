@@ -585,3 +585,25 @@ mark { background: #ffe066; border-radius: 2px; padding: 0 1px; }
 .course-home-section-head .course-home-heading {
   margin-top: 0;
 }
+/* 개념 탭: 위에 과목 개념 지도, 아래에 목록·상세 (페이지 전체가 스크롤) */
+.concept-page { overflow-y: auto; display: flex; flex-direction: column; }
+.concept-page > .concepts { flex: none; height: calc(100vh - 118px); min-height: 460px; }
+.concept-map { flex: none; margin: 12px 12px 0; padding: 10px 14px 12px; }
+.concept-map-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.concept-map-head strong { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.concept-map-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 11.5px; color: #6b7486; margin: 8px 0 8px; }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.legend-repeat { width: 22px; height: 12px; border: 2px solid #7aa2f7; border-radius: 4px; background: #fff; }
+.concept-map-scroll { overflow-x: auto; }
+.concept-map-scroll svg { display: block; }
+.cm-node { cursor: pointer; transition: opacity 0.15s; }
+.cm-node:focus { outline: none; }
+.cm-node:focus-visible rect { stroke: #1d4ed8; stroke-width: 3; }
+.cm-node:hover rect { filter: drop-shadow(0 2px 4px rgba(47, 111, 237, 0.25)); }
+.concept-graph-wide { margin: 2px 0 18px; }
+.concept-graph-wide .concept-graph-wrap { margin-top: 6px; }
+
+/* 과목 홈 카드 요약 숫자 */
+.course-home-card-stats { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.chip-plain { background: #f1f4f9; color: #4b5568; }
+.note-preview { margin: 8px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 640px; }

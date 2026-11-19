@@ -6,11 +6,16 @@ import {
   Clock3,
   ArrowRight,
   FileText,
+  PenLine,
+  AlertTriangle,
 } from 'lucide-react';
 
-import { getCourse, notes } from '../data/index.js';
+import { getCourse } from '../data/index.js';
 import { fmtDate, lectureLabel } from '../lib/format.js';
+import { noteStatus } from '../lib/summary.js';
 import { useStore } from '../store.jsx';
+
+const LECTURE_STATUS = { processing: '스크립트 처리 중', failed: '처리 실패', empty: '자료 없음' };
 
 export default function CourseNotes({ courseId }) {
   const {
@@ -23,28 +28,27 @@ export default function CourseNotes({ courseId }) {
   const course = getCourse(courseId);
   const lectures = courseLectures(courseId);
 
-  // 필기가 있거나 점검 기록이 있는 강의 추출
-  const noteItems = lectures
-    .map((lecture) => {
-      const sample = notes[lecture.id];
+  // 과목의 모든 강의를 보여 주고, 필기가 없는 강의는 '필기 없음'으로 표시
+  const noteItems = lectures.map((lecture) => {
+    const st = noteStatus(lecture.id, noteTexts, noteChecked);
+    const preview = st.text
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .slice(0, 2)
+      .join(' / ');
 
-      const text =
-        noteTexts[lecture.id] ?? sample?.text ?? '';
+    return {
+      lecture,
+      st,
+      preview,
+      hasNote: st.hasNote,
+      hasChecked: st.checked,
+      isUpToDate: st.checked && !st.stale,
+    };
+  });
 
-      const checkedText = noteChecked[lecture.id];
-
-      const hasNote = text.trim().length > 0;
-      const hasChecked = checkedText != null;
-
-      return {
-        lecture,
-        hasNote,
-        hasChecked,
-        isUpToDate:
-          hasChecked && checkedText === text,
-      };
-    })
-    .filter((item) => item.hasNote || item.hasChecked);
+  const writtenCount = noteItems.filter((n) => n.hasNote).length;
 
   const openNote = (lectureId) => {
     patch({
@@ -78,18 +82,18 @@ export default function CourseNotes({ courseId }) {
 
       {/* 필기 목록 */}
       <h2 className="course-home-heading">
-        강의별 필기 ({noteItems.length})
+        강의별 필기 (작성 {writtenCount} / {noteItems.length}강)
       </h2>
 
       {noteItems.length === 0 ? (
         <div className="course-home-empty">
           <NotebookPen size={28} />
 
-          <p>아직 작성된 필기가 없습니다.</p>
+          <p>등록된 강의가 없습니다.</p>
 
           <p className="muted small">
-            강의를 선택하고 필기 점검 화면에서
-            필기를 작성하면 여기에 표시됩니다.
+            왼쪽에서 강의를 추가하면 강의별 필기를
+            여기에서 모아 볼 수 있습니다.
           </p>
         </div>
       ) : (
@@ -97,6 +101,8 @@ export default function CourseNotes({ courseId }) {
           {noteItems.map(
             ({
               lecture,
+              st,
+              preview,
               hasNote,
               hasChecked,
               isUpToDate,
@@ -144,41 +150,78 @@ export default function CourseNotes({ courseId }) {
                       gap: 8,
                     }}
                   >
-                    {hasNote && (
-                      <span className="chip">
+                    {LECTURE_STATUS[lecture.status] && (
+                      <span className="chip chip-warn">
+                        <AlertTriangle size={12} />
+                        {LECTURE_STATUS[lecture.status]}
+                      </span>
+                    )}
+
+                    {!hasNote ? (
+                      <span className="chip chip-plain">
+                        <FileText size={12} />
+                        필기 없음
+                      </span>
+                    ) : (
+                      <span className="chip chip-plain">
                         <FileText size={12} />
                         필기 있음
                       </span>
                     )}
 
-                    {hasChecked && isUpToDate ? (
+                    {hasNote && (hasChecked && isUpToDate ? (
                       <span className="chip chip-ok">
                         <CheckCircle2 size={12} />
                         점검 완료
                       </span>
                     ) : hasChecked ? (
-                      <span className="chip chip-info">
+                      <span className="chip chip-warn">
                         <Clock3 size={12} />
-                        점검 후 필기 변경됨
+                        점검 후 필기 변경됨 · 다시 점검 필요
                       </span>
                     ) : (
-                      <span className="chip">
+                      <span className="chip chip-plain">
                         <Clock3 size={12} />
                         점검 전
                       </span>
+                    ))}
+
+                    {isUpToDate && st.mismatch > 0 && (
+                      <span className="chip chip-danger">불일치 {st.mismatch}</span>
+                    )}
+                    {isUpToDate && st.missing > 0 && (
+                      <span className="chip chip-warn">누락 가능성 {st.missing}</span>
+                    )}
+                    {isUpToDate && st.insufficient > 0 && (
+                      <span className="chip chip-plain">근거 부족 {st.insufficient}</span>
                     )}
                   </div>
+
+                  {preview && (
+                    <p className="note-preview muted small">{preview}</p>
+                  )}
                 </div>
 
                 {/* 해당 강의 필기로 이동 */}
-                <button
-                  type="button"
-                  className="btn primary small"
-                  onClick={() => openNote(lecture.id)}
-                >
-                  필기 확인 및 점검
-                  <ArrowRight size={14} />
-                </button>
+                {hasNote ? (
+                  <button
+                    type="button"
+                    className="btn primary small"
+                    onClick={() => openNote(lecture.id)}
+                  >
+                    필기 확인 및 점검
+                    <ArrowRight size={14} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn small"
+                    onClick={() => openNote(lecture.id)}
+                  >
+                    <PenLine size={13} />
+                    필기 작성하기
+                  </button>
+                )}
               </div>
             )
           )}
