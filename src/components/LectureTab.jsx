@@ -123,7 +123,7 @@ function Viewer({ lecture }) {
     return () => url && URL.revokeObjectURL(url);
   }, [lectureVideo, lecture.id]);
   const videoSrc = uploadedUrl || asset(lecture.videoUrl);
-  const audioSrc = videoSrc ? null : DEMO_AUDIO[lecture.id];
+  const audioSrc = videoSrc ? null : asset(DEMO_AUDIO[lecture.id]);
   const [audioReady, setAudioReady] = useState(false);
 
   useEffect(() => { setAudioReady(false); }, [audioSrc]);
