@@ -120,37 +120,111 @@ export default function ConceptMap({ list, lectures, selectedId, termMode, onSel
       for (let d = 0; d <= maxD; d += 1) cols.push({ li, d, items: nodes.filter((c) => lecOf[c.id] === li && depth[c.id] === d).map((c) => c.id) });
     });
 
-    // 선이 덜 꼬이도록 이웃 개념의 평균 위치로 정렬 (barycenter)
-    const nb = {};
+    // 열을 건너뛰는 긴 선은 중간 열마다 '통로' 자리(dummy)를 만들어,
+    // 다른 개념 상자 뒤를 지나가지 않고 상자 사이 빈칸으로 지나가게 함
+    const colOf = {};
+    cols.forEach((col, ci) => col.items.forEach((id) => { colOf[id] = ci; }));
+    const isDummy = (id) => id.startsWith('~');
     edges.forEach((e) => {
-      (nb[e.from] = nb[e.from] || []).push(e.to);
-      (nb[e.to] = nb[e.to] || []).push(e.from);
+      const c1 = colOf[e.from];
+      const c2 = colOf[e.to];
+      e.same = c1 === c2;
+      e.reversed = c1 > c2; // 오른쪽 → 왼쪽 관계는 왼쪽에서 그려 화살표를 시작점에 둠
+      const [a, b] = e.reversed ? [e.to, e.from] : [e.from, e.to];
+      e.chain = [a];
+      if (!e.same) {
+        for (let k = Math.min(c1, c2) + 1; k < Math.max(c1, c2); k += 1) {
+          const d = `~${e.key}~${k}`;
+          cols[k].items.push(d);
+          colOf[d] = k;
+          e.chain.push(d);
+        }
+      }
+      e.chain.push(b);
     });
-    const pos = {};
-    const setPos = () => cols.forEach((col) => col.items.forEach((id, i) => { pos[id] = (i + 0.5) / col.items.length; }));
-    setPos();
-    for (let pass = 0; pass < 6; pass += 1) {
-      const seq = pass % 2 ? [...cols].reverse() : cols;
-      seq.forEach((col) => {
-        const score = (id) => {
-          const ns = (nb[id] || []).filter((n) => !col.items.includes(n));
-          return ns.length ? ns.reduce((s, n) => s + pos[n], 0) / ns.length : pos[id];
-        };
-        col.items.sort((a, b) => score(a) - score(b));
-        col.items.forEach((id, i) => { pos[id] = (i + 0.5) / col.items.length; });
+
+    // 인접한 열 사이 연결 (선 꼬임 계산용)
+    const links = [];
+    edges.forEach((e) => {
+      if (e.same) return;
+      for (let i = 0; i < e.chain.length - 1; i += 1) links.push([e.chain[i], e.chain[i + 1]]);
+    });
+    const nbL = {};
+    const nbR = {};
+    links.forEach(([u, v]) => {
+      (nbR[u] = nbR[u] || []).push(v);
+      (nbL[v] = nbL[v] || []).push(u);
+    });
+    const idx = {};
+    const reindex = (col) => col.items.forEach((id, i) => { idx[id] = i; });
+    cols.forEach(reindex);
+
+    // 1) barycenter: 왼쪽·오른쪽 이웃의 평균 순서로 정렬 (여러 번 왕복)
+    const bary = (id, side) => {
+      const ns = (side === 'L' ? nbL[id] : nbR[id]) || [];
+      return ns.length ? ns.reduce((acc, n) => acc + idx[n], 0) / ns.length : null;
+    };
+    for (let pass = 0; pass < 12; pass += 1) {
+      const down = pass % 2 === 0;
+      const seq = down ? cols.map((_, i) => i) : cols.map((_, i) => cols.length - 1 - i);
+      seq.forEach((ci) => {
+        const col = cols[ci];
+        const key = Object.fromEntries(col.items.map((id) => {
+          const b = bary(id, down ? 'L' : 'R') ?? bary(id, down ? 'R' : 'L');
+          return [id, b == null ? idx[id] : b];
+        }));
+        col.items.sort((a, b) => key[a] - key[b] || idx[a] - idx[b]);
+        reindex(col);
       });
     }
 
-    // 좌표
-    const rows = Math.max(...cols.map((c) => c.items.length), 1);
-    const height = HEAD_H + rows * ROW_H + PAD;
+    // 2) 이웃한 두 개념을 바꿔서 꼬임이 줄면 바꾸기
+    const crossingsAt = (ci) => {
+      let n = 0;
+      const pairs = links.filter(([u, v]) => colOf[u] === ci && colOf[v] === ci + 1);
+      for (let i = 0; i < pairs.length; i += 1) {
+        for (let j = i + 1; j < pairs.length; j += 1) {
+          const [a1, b1] = pairs[i];
+          const [a2, b2] = pairs[j];
+          if ((idx[a1] - idx[a2]) * (idx[b1] - idx[b2]) < 0) n += 1;
+        }
+      }
+      return n;
+    };
+    const around = (ci) => (ci > 0 ? crossingsAt(ci - 1) : 0) + (ci < cols.length - 1 ? crossingsAt(ci) : 0);
+    for (let round = 0; round < 8; round += 1) {
+      let improved = false;
+      cols.forEach((col, ci) => {
+        for (let i = 0; i < col.items.length - 1; i += 1) {
+          const before = around(ci);
+          [col.items[i], col.items[i + 1]] = [col.items[i + 1], col.items[i]];
+          reindex(col);
+          if (around(ci) < before) improved = true;
+          else {
+            [col.items[i], col.items[i + 1]] = [col.items[i + 1], col.items[i]];
+            reindex(col);
+          }
+        }
+      });
+      if (!improved) break;
+    }
+
+    // 좌표: 개념 칸은 높게, 통로 칸은 낮게
+    const DUMMY_H = 20;
+    const slotH = (id) => (isDummy(id) ? DUMMY_H : ROW_H);
+    const colH = (col) => col.items.reduce((acc, id) => acc + slotH(id), 0);
+    const maxH = Math.max(...cols.map(colH), ROW_H);
+    const height = HEAD_H + maxH + PAD;
     const colW = (width - PAD * 2) / Math.max(cols.length, 1);
     const nodeW = Math.min(150, colW - 26);
     const xy = {};
     cols.forEach((col, ci) => {
       const cx = PAD + colW * (ci + 0.5);
-      const top = HEAD_H + ((rows - col.items.length) * ROW_H) / 2 + (ROW_H - NODE_H) / 2;
-      col.items.forEach((id, i) => { xy[id] = { x: cx, y: top + i * ROW_H + NODE_H / 2, ci }; });
+      let y = HEAD_H + (maxH - colH(col)) / 2;
+      col.items.forEach((id) => {
+        xy[id] = { x: cx, y: y + slotH(id) / 2, ci };
+        y += slotH(id);
+      });
     });
 
     // 강의 구역 (배경 띠 + 제목)
@@ -170,21 +244,66 @@ export default function ConceptMap({ list, lectures, selectedId, termMode, onSel
   const focus = hoverId || selectedId;
   const near = new Set(hoverId ? [hoverId, ...edges.filter((e) => e.from === hoverId || e.to === hoverId).flatMap((e) => [e.from, e.to])] : []);
 
+  // 한 개념에서 여러 선이 나가거나 들어올 때, 상자 옆면에서 조금씩 띄워 붙임 (한 점에 몰리지 않게)
+  const ports = useMemo(() => {
+    const out = {};
+    const inc = {};
+    edges.forEach((e) => {
+      if (e.same) return;
+      const first = e.chain[0];
+      const last = e.chain[e.chain.length - 1];
+      (out[first] = out[first] || []).push(e);
+      (inc[last] = inc[last] || []).push(e);
+    });
+    const off = {};
+    const assign = (groups, pick) =>
+      Object.values(groups).forEach((list) => {
+        list.sort((p, q) => xy[pick(p)].y - xy[pick(q)].y);
+        const step = Math.min(7, 26 / Math.max(list.length - 1, 1));
+        list.forEach((e, k) => {
+          off[`${e.key}|${pick === nextOf ? 's' : 'e'}`] = (k - (list.length - 1) / 2) * step;
+        });
+      });
+    function nextOf(e) { return e.chain[1]; }
+    function prevOf(e) { return e.chain[e.chain.length - 2]; }
+    assign(out, nextOf);
+    assign(inc, prevOf);
+    return off;
+  }, [edges, xy]);
+
+  // 선 경로: 개념 상자 오른쪽 → (통로 칸을 수평으로 지나) → 다음 개념 상자 왼쪽
+  // 양 끝은 짧게 수평으로 그려서 화살표가 반듯하게 들어가도록 함
+  const STUB = 12;
   const pathFor = (e) => {
-    const a = xy[e.from];
-    const b = xy[e.to];
     const hw = nodeW / 2;
-    if (a.ci === b.ci) {
-      // 같은 열: 오른쪽으로 휘어 돌아가는 곡선
-      const x = a.x + hw;
-      const bend = 30 + Math.abs(b.y - a.y) * 0.12;
-      return `M ${x} ${a.y} C ${x + bend} ${a.y}, ${x + bend} ${b.y}, ${x + 3} ${b.y}`;
+    if (e.same) {
+      // 같은 열 (비교 관계): 붙어 있으면 위아래로 짧은 점선, 떨어져 있으면 오른쪽으로 작게 휘기
+      const [top, bot] = [xy[e.from], xy[e.to]].sort((p, q) => p.y - q.y);
+      if (bot.y - top.y <= ROW_H + 1) return `M ${top.x} ${top.y + NODE_H / 2} L ${bot.x} ${bot.y - NODE_H / 2}`;
+      const x = top.x + hw;
+      return `M ${x} ${top.y} C ${x + 14} ${top.y}, ${x + 14} ${bot.y}, ${x} ${bot.y}`;
     }
-    const dir = b.x > a.x ? 1 : -1;
-    const x1 = a.x + hw * dir;
-    const x2 = b.x - (hw + 3) * dir;
-    const mid = (x1 + x2) / 2;
-    return `M ${x1} ${a.y} C ${mid} ${a.y}, ${mid} ${b.y}, ${x2} ${b.y}`;
+    const first = xy[e.chain[0]];
+    const last = xy[e.chain[e.chain.length - 1]];
+    const sy = first.y + (ports[`${e.key}|s`] || 0);
+    const ey = last.y + (ports[`${e.key}|e`] || 0);
+    const pts = [[first.x + hw, sy], [first.x + hw + STUB, sy]];
+    e.chain.slice(1, -1).forEach((id) => {
+      const q = xy[id];
+      pts.push([q.x - hw, q.y], [q.x + hw, q.y]);
+    });
+    pts.push([last.x - hw - STUB, ey], [last.x - hw - 1, ey]);
+    let d = `M ${pts[0][0]} ${pts[0][1]}`;
+    for (let i = 1; i < pts.length; i += 1) {
+      const [x0, y0] = pts[i - 1];
+      const [x1, y1] = pts[i];
+      if (Math.abs(y0 - y1) < 0.5) d += ` L ${x1} ${y1}`;
+      else {
+        const m = (x0 + x1) / 2;
+        d += ` C ${m} ${y0}, ${m} ${y1}, ${x1} ${y1}`;
+      }
+    }
+    return d;
   };
 
   return (
@@ -222,7 +341,7 @@ export default function ConceptMap({ list, lectures, selectedId, termMode, onSel
             <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group" aria-label="과목 개념 지도">
               <defs>
                 {Object.entries(REL_STYLE).map(([k, v]) => (
-                  <marker key={k} id={`cm-arrow-${k}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <marker key={k} id={`cm-arrow-${k}`} viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
                     <path d="M 0 0 L 10 5 L 0 10 z" fill={v.color} />
                   </marker>
                 ))}
@@ -243,7 +362,7 @@ export default function ConceptMap({ list, lectures, selectedId, termMode, onSel
               {edges.map((e) => {
                 const st = REL_STYLE[e.relation] || REL_STYLE.prerequisite;
                 const on = !focus || e.from === focus || e.to === focus;
-                const faded = hoverId ? 0.12 : 0.4;
+                const faded = hoverId ? 0.15 : 0.6;
                 return (
                   <path
                     key={e.key}
@@ -252,7 +371,8 @@ export default function ConceptMap({ list, lectures, selectedId, termMode, onSel
                     stroke={st.color}
                     strokeWidth={on && focus ? 2.4 : 1.6}
                     strokeDasharray={st.dashed ? '5 4' : undefined}
-                    markerEnd={e.directed ? `url(#cm-arrow-${e.relation})` : undefined}
+                    markerEnd={e.directed && !e.reversed ? `url(#cm-arrow-${e.relation})` : undefined}
+                    markerStart={e.directed && e.reversed ? `url(#cm-arrow-${e.relation})` : undefined}
                     opacity={on ? 0.95 : faded}
                   >
                     <title>{`${shortName(byId[e.from], termMode)} → ${shortName(byId[e.to], termMode)} · ${st.label}`}</title>

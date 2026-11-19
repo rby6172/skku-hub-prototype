@@ -19,7 +19,7 @@ const quizzes = [
         ],
       },
       {
-        no: 2, question: 'XP(Extreme Programming)의 일반적인 릴리스 주기로 옳은 것은?',
+        no: 2, question: 'XP(Extreme Programming)의 일반적인 반복(iteration) 주기로 옳은 것은?',
         choices: ['1~2일', '2~3주', '2~3개월', '1년'],
         response: 3, answer: 2, answerReleased: true, correct: false, points: 0,
         trace: [
