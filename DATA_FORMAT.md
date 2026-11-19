@@ -39,7 +39,7 @@ export default {
 
 ### 슬라이드
 ```js
-{ no: 9, title: 'XP 릴리스 주기', bullets: ['릴리스 주기: 2~3개월', '...'] }
+{ no: 9, title: 'XP 반복(iteration) 주기', bullets: ['반복 주기: 2~3개월', '...'] }
 ```
 - 실제 슬라이드 이미지를 쓰고 싶으면 PPT를 PNG로 내보내 `public/slides/swe-03/9.png`에 넣고 `image: '/slides/swe-03/9.png'`를 추가하세요.
 
@@ -62,9 +62,9 @@ export default {
   id: 'f-03-1',
   type: 'correction',      // correction(구두 정정) | extra(추가 설명) | assignment(과제) | notice(공지) | emphasis(강조)
   support: 'supported',    // supported(뒷받침됨) | uncertain(미확정) | conflict(상충) | insufficient(근거 부족)
-  title: 'XP 릴리스 주기 정정',
+  title: 'XP 반복(iteration) 주기 정정',
   content: '설명 문장',
-  before: '릴리스 주기: 2~3개월', after: '릴리스 주기: 2~3주',  // 정정일 때만. before는 슬라이드 문장과 같게
+  before: '반복 주기: 2~3개월', after: '반복 주기: 2~3주',  // 정정일 때만. before는 슬라이드 문장과 같게
   duePhrase: '다음 주 수요일 자정까지', dueSuggested: '2026-10-14T23:59',  // 과제·공지일 때만
   evidence: ['s23', 's24'], // 근거가 된 스크립트 문장 id
   slide: 9,

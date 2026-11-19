@@ -15,7 +15,7 @@ const notes = {
   - user story 카드
   - pair programming: 2명이 같이 코딩
   - test-first: 테스트 먼저
-  - 릴리스 주기: 2~3개월
+  - 반복 주기: 2~3개월
 - XP는 2000년대 초에 처음 만들어짐
 - Scrum
   - product backlog
@@ -24,8 +24,8 @@ const notes = {
     results: [
       {
         id: 'n1', type: 'mismatch', support: 'supported',
-        title: 'XP 릴리스 주기가 정정 전 내용으로 적혀 있음',
-        noteLine: '  - 릴리스 주기: 2~3개월',
+        title: 'XP 반복 주기가 정정 전 내용으로 적혀 있음',
+        noteLine: '  - 반복 주기: 2~3개월',
         explanation: '교수자가 슬라이드의 "2~3개월"을 "2~3주"로 구두 정정했습니다. 필기는 정정 전 내용입니다.',
         evidence: ['s24'],
       },

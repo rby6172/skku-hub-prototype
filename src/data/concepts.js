@@ -26,7 +26,6 @@ const concepts = [
     related: [
       { conceptId: 'waterfall', relation: 'extends', lectureId: 'swe-02', segmentId: 'b4' },
       { conceptId: 'incremental', relation: 'extends', lectureId: 'swe-02', segmentId: 'b4' },
-      { conceptId: 'prototyping', relation: 'extends', lectureId: 'swe-02', segmentId: 'b4' },
     ],
     references: [{ refId: 'tb', section: 'Ch. 2', page: 44, quote: '모든 소프트웨어 프로세스에는 명세, 설계·구현, 검증, 진화라는 기본 활동이 포함된다.' }],
   },

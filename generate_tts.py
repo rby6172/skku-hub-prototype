@@ -53,6 +53,9 @@ PAUSE_MS = 350
 # TTS에 전달하는 문장에만 적용합니다.
 
 PRONUNCIATIONS = {
+    # 애자일 (Lecture 03 슬라이드 9 정정 장면)
+    "iteration": "이터레이션",
+
     # 소프트웨어 공학
     "Software Engineering": "소프트웨어 엔지니어링",
     "Software Development": "소프트웨어 디벨롭먼트",
