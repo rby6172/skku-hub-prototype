@@ -13,6 +13,7 @@ import {
 import { fmtDate, lectureLabel } from '../lib/format.js';
 import { useStore } from '../store.jsx';
 import { EmptyState, JumpButton, TermText } from './common.jsx';
+import ConceptMap from './ConceptMap.jsx';
 
 const OUT = {
   prerequisite: '이 개념을 바탕으로 배우는 개념',
@@ -78,9 +79,9 @@ function ConceptGraph({ current, incoming, outgoing, termMode, onSelect }) {
   const bottom = relations.filter((r) => getPosition(r) === 'bottom');
   const side = relations.filter((r) => getPosition(r) === 'side');
 
-  const nodeWidth = 160;
+  const nodeWidth = 150;
   const nodeHeight = 52;
-  const gap = 22;
+  const gap = 16;
   const padding = 24;
   const sideGap = 46;
 
@@ -146,10 +147,10 @@ function ConceptGraph({ current, incoming, outgoing, termMode, onSelect }) {
     y: centerY
   }));
 
-  const currentName = conceptName(current, termMode);
+  const currentName = conceptName(current, termMode === 'en' ? 'en' : 'ko');
 
   function renderNode(node) {
-    const name = conceptName(node.concept, termMode);
+    const name = conceptName(node.concept, termMode === 'en' ? 'en' : 'ko');
 
     return (
       <g
@@ -196,8 +197,8 @@ function ConceptGraph({ current, incoming, outgoing, termMode, onSelect }) {
           fontWeight="600"
           fill="#1e293b"
         >
-          {name.length > 13
-            ? `${name.slice(0, 12)}…`
+          {name.length > 15
+            ? `${name.slice(0, 14)}…`
             : name}
         </text>
 
@@ -219,6 +220,7 @@ function ConceptGraph({ current, incoming, outgoing, termMode, onSelect }) {
           viewBox={`0 0 ${width} ${height}`}
           width={width}
           height={height}
+          style={{ maxWidth: '100%', height: 'auto' }}
           role="group"
           aria-label={`${currentName}의 개념 관계 그래프`}
         >
@@ -306,8 +308,8 @@ function ConceptGraph({ current, incoming, outgoing, termMode, onSelect }) {
               fontWeight="600"
               fill="#ffffff"
             >
-              {currentName.length > 13
-                ? `${currentName.slice(0, 12)}…`
+              {currentName.length > 15
+                ? `${currentName.slice(0, 14)}…`
                 : currentName}
             </text>
 
@@ -329,7 +331,8 @@ function ConceptGraph({ current, incoming, outgoing, termMode, onSelect }) {
         상위·선행 개념은 위쪽, 세부·확장 개념과 대표적인
         예시는 아래쪽에 표시합니다. 비교 대상은 오른쪽에
         점선으로 연결합니다. 연결된 개념을 클릭하면 해당
-        개념으로 이동합니다.
+        개념으로 이동하고, 각 관계의 강의 근거는 오른쪽
+        "관련 개념 근거"에서 볼 수 있습니다.
       </p>
     </div>
   );
@@ -399,6 +402,19 @@ export default function ConceptTab({ courseId }) {
   );
 
   return (
+    <div className="concept-page">
+      <ConceptMap
+        list={list}
+        lectures={indexed}
+        selectedId={selected?.id}
+        termMode={termMode}
+        onSelect={(id) => {
+          setQ('');
+          setOnlyRepeated(false);
+          patch({ selectedConceptId: id });
+        }}
+      />
+
     <div className="concepts">
       <aside className="concept-list panel">
         <div className="panel-head">
@@ -475,6 +491,7 @@ export default function ConceptTab({ courseId }) {
           excluded={excluded}
         />
       )}
+    </div>
     </div>
   );
 }
@@ -601,6 +618,27 @@ function ConceptDetail({ c, indexed, excluded }) {
         </p>
       )}
 
+      {(outgoing.length > 0 || incoming.length > 0) && (
+        <div className="concept-graph-wide">
+          <h3 className="sub-h">
+            <Network size={15} />
+            관련 개념
+          </h3>
+
+          <ConceptGraph
+            current={c}
+            incoming={incoming}
+            outgoing={outgoing}
+            termMode={termMode}
+            onSelect={(id) =>
+              patch({
+                selectedConceptId: id
+              })
+            }
+          />
+        </div>
+      )}
+
       <div className="concept-cols">
         <div className="chain">
           <h3 className="sub-h">
@@ -662,30 +700,8 @@ function ConceptDetail({ c, indexed, excluded }) {
             <div className="side-block">
               <h3 className="sub-h">
                 <Network size={15} />
-                관련 개념
+                관련 개념 근거
               </h3>
-
-              {/* 개념 관계 그래프 */}
-              <ConceptGraph
-                current={c}
-                incoming={incoming}
-                outgoing={outgoing}
-                termMode={termMode}
-                onSelect={(id) =>
-                  patch({
-                    selectedConceptId: id
-                  })
-                }
-              />
-
-              {/* 기존 강의 근거 */}
-              <div
-                style={{ marginTop: 16 }}
-              >
-                <strong className="small">
-                  관계별 강의 근거
-                </strong>
-              </div>
 
               {incoming.map((r) => {
                 const a = resolveAnchor(r);

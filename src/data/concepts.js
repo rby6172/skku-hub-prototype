@@ -12,7 +12,7 @@ const concepts = [
       { lectureId: 'swe-01', segmentId: 'a5', role: 'explain' },
       { lectureId: 'swe-02', segmentId: 'b2', role: 'explain' },
     ],
-    related: [],
+    related: [{ conceptId: 'process', relation: 'extends', lectureId: 'swe-02', segmentId: 'b3' }],
     references: [{ refId: 'tb', section: 'Ch. 1.1', page: 19, quote: '소프트웨어 공학은 명세부터 운영 이후의 유지보수까지, 소프트웨어 생산의 모든 측면을 다루는 공학 분야이다.' }],
   },
   {
@@ -23,7 +23,11 @@ const concepts = [
       { lectureId: 'swe-02', segmentId: 'b3', role: 'explain' },
       { lectureId: 'swe-02', segmentId: 'b4', role: 'apply' },
     ],
-    related: [{ conceptId: 'waterfall', relation: 'extends', lectureId: 'swe-02', segmentId: 'b4' }],
+    related: [
+      { conceptId: 'waterfall', relation: 'extends', lectureId: 'swe-02', segmentId: 'b4' },
+      { conceptId: 'incremental', relation: 'extends', lectureId: 'swe-02', segmentId: 'b4' },
+      { conceptId: 'prototyping', relation: 'extends', lectureId: 'swe-02', segmentId: 'b4' },
+    ],
     references: [{ refId: 'tb', section: 'Ch. 2', page: 44, quote: '모든 소프트웨어 프로세스에는 명세, 설계·구현, 검증, 진화라는 기본 활동이 포함된다.' }],
   },
   {
@@ -34,7 +38,10 @@ const concepts = [
       { lectureId: 'swe-02', segmentId: 'b8', role: 'apply' },
       { lectureId: 'swe-03', segmentId: 's3', role: 'apply' },
     ],
-    related: [],
+    related: [
+      { conceptId: 'prototyping', relation: 'prerequisite', lectureId: 'swe-02', segmentId: 'b16' },
+      { conceptId: 'userstory', relation: 'extends', lectureId: 'swe-03', segmentId: 's17' },
+    ],
     references: [{ refId: 'tb', section: 'Ch. 4.1', page: 102, quote: '요구사항은 시스템이 제공해야 하는 서비스와 시스템 운영에 대한 제약을 기술한 것이다.' }],
   },
   {
@@ -108,7 +115,14 @@ const concepts = [
       { lectureId: 'swe-03', segmentId: 's16', role: 'explain' },
       { lectureId: 'swe-03', segmentId: 's24', role: 'explain' },
     ],
-    related: [{ conceptId: 'pair', relation: 'extends', lectureId: 'swe-03', segmentId: 's19' }],
+    related: [
+      { conceptId: 'agile', relation: 'example', lectureId: 'swe-03', segmentId: 's15' },
+      { conceptId: 'userstory', relation: 'extends', lectureId: 'swe-03', segmentId: 's17' },
+      { conceptId: 'pair', relation: 'extends', lectureId: 'swe-03', segmentId: 's19' },
+      { conceptId: 'tdd', relation: 'extends', lectureId: 'swe-03', segmentId: 's21' },
+      { conceptId: 'refactoring', relation: 'extends', lectureId: 'swe-03', segmentId: 's22' },
+      { conceptId: 'scrum', relation: 'contrast', lectureId: 'swe-03', segmentId: 's26' },
+    ],
     references: [{ refId: 'tb', section: 'Ch. 3.2', page: 78, quote: 'XP는 짧은 릴리스, 테스트 우선 개발, 짝 프로그래밍 같은 실천 방법을 강조하는 대표적인 애자일 방법이다.' }],
   },
   {
